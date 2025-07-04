@@ -9,7 +9,12 @@ import {
     Menu,
     X,
     User,
-    Activity
+    Activity,
+    ClipboardList,
+    GraduationCap,
+    Wrench,
+    AlertTriangle,
+    ShieldCheck
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
@@ -23,6 +28,12 @@ const Layout = ({ children }) => {
         { name: 'Dashboard', href: '/dashboard', icon: FileText, roles: ['admin', 'user', 'client'] },
         { name: 'Clientes', href: '/clients', icon: Building2, roles: ['admin', 'user'] },
         { name: 'Certificados', href: '/certificates', icon: FileText, roles: ['admin', 'user'] },
+        { name: 'Documentos', href: '/documents', icon: FileText, roles: ['admin', 'user'] },
+        { name: 'Registros Técnicos', href: '/records', icon: ClipboardList, roles: ['admin', 'user'] },
+        { name: 'Pessoal & Treinamentos', href: '/trainings', icon: GraduationCap, roles: ['admin', 'user'] },
+        { name: 'Equipamentos', href: '/equipment', icon: Wrench, roles: ['admin', 'user'] },
+        { name: 'Não Conformidades', href: '/non-conformities', icon: AlertTriangle, roles: ['admin', 'user'] },
+        { name: 'Auditorias Internas', href: '/internal-audits', icon: ShieldCheck, roles: ['admin', 'user'] },
         { name: 'Usuários', href: '/users', icon: Users, roles: ['admin'] },
         { name: 'Logs de Auditoria', href: '/audit-logs', icon: Activity, roles: ['admin'] },
         { name: 'Configurações', href: '/system-settings', icon: Settings, roles: ['admin'] },
@@ -142,6 +153,10 @@ const Layout = ({ children }) => {
                 <main className="p-6">
                     {children}
                 </main>
+                <footer className="w-full text-center py-4 bg-gray-100 border-t border-gray-200 text-sm text-gray-600">
+                    © {new Date().getFullYear()} Desenvolvido por 
+                    <a href="https://wa.me/5593992089384" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline ml-1">Clegivaldo Cruz</a>
+                </footer>
             </div>
         </div>
     );

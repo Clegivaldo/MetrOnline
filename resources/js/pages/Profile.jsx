@@ -236,7 +236,7 @@ const Profile = () => {
                                                     alt="Foto de perfil" 
                                                     className="w-full h-full object-cover"
                                                     onError={(e) => {
-                                                        console.log('Erro ao carregar imagem:', e.target.src);
+                                                        e.target.onerror = null;
                                                         e.target.style.display = 'none';
                                                         const fallback = e.target.parentElement.querySelector('.fallback-icon');
                                                         if (fallback) {

@@ -13,7 +13,18 @@ import ClientDashboard from './pages/ClientDashboard';
 import Profile from './pages/Profile';
 import AuditLogs from './pages/AuditLogs';
 import SystemSettings from './pages/SystemSettings';
+import DocumentManagement from './pages/DocumentManagement';
+import DocumentDetail from './components/documents/DocumentDetail';
+import DocumentEdit from './pages/DocumentEdit';
+import DocumentCreate from './pages/DocumentCreate';
+import DocumentRevisions from './components/documents/DocumentRevisions';
+import DocumentDistributions from './components/documents/DocumentDistributions';
 import Layout from './components/Layout';
+import Records from './pages/Records';
+import Trainings from './pages/Trainings';
+import Equipment from './pages/Equipment';
+import NonConformities from './pages/NonConformities';
+import InternalAudits from './pages/InternalAudits';
 import './index.css';
 
 function ProtectedRoute({ children, allowedRoles = [] }) {
@@ -78,6 +89,54 @@ function AppRoutes() {
                     <ProtectedRoute allowedRoles={['admin', 'user']}>
                         <Layout>
                             <CertificateManagement />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+            
+            <Route
+                path="/documents"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <DocumentManagement />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+            
+            <Route
+                path="/documents/new"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <DocumentCreate />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+            
+            <Route
+                path="/documents/:id"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <DocumentDetail />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            >
+                <Route index element={<DocumentDetail />} />
+                <Route path="revisions" element={<DocumentRevisions />} />
+                <Route path="distributions" element={<DocumentDistributions />} />
+            </Route>
+            
+            <Route
+                path="/documents/:id/edit"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <DocumentEdit />
                         </Layout>
                     </ProtectedRoute>
                 }
@@ -154,6 +213,61 @@ function AppRoutes() {
                     <ProtectedRoute allowedRoles={['admin']}>
                         <Layout>
                             <SystemSettings />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/records"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <Records />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/trainings"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <Trainings />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/equipment"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <Equipment />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/non-conformities"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <NonConformities />
+                        </Layout>
+                    </ProtectedRoute>
+                }
+            />
+
+            <Route
+                path="/internal-audits"
+                element={
+                    <ProtectedRoute allowedRoles={['admin', 'user']}>
+                        <Layout>
+                            <InternalAudits />
                         </Layout>
                     </ProtectedRoute>
                 }

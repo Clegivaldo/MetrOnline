@@ -23,6 +23,7 @@ const SystemSettings = () => {
     const [activeTab, setActiveTab] = useState('company');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [testEmail, setTestEmail] = useState('');
     
     // Dados da empresa
     const [companyData, setCompanyData] = useState({
@@ -55,6 +56,11 @@ const SystemSettings = () => {
     const [emailTemplates, setEmailTemplates] = useState([]);
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [templateContent, setTemplateContent] = useState('');
+    const [testTemplateModalOpen, setTestTemplateModalOpen] = useState(false);
+    const [testTemplateClient, setTestTemplateClient] = useState('');
+    const [testTemplateEquipment, setTestTemplateEquipment] = useState('');
+    const [clients, setClients] = useState([]);
+    const [equipments, setEquipments] = useState([]);
 
     // Segurança
     const [securitySettings, setSecuritySettings] = useState({
@@ -254,6 +260,52 @@ const SystemSettings = () => {
             }
         }
     };
+
+    const openTestTemplateModal = (template) => {
+        setSelectedTemplate(template);
+        setTestTemplateModalOpen(true);
+        // Buscar clientes
+        axios.get('/api/clients').then(res => setClients(res.data));
+        setEquipments([]);
+        setTestTemplateClient('');
+        setTestTemplateEquipment('');
+    };
+
+    const closeTestTemplateModal = () => {
+        setSelectedTemplate(null);
+        setTestTemplateModalOpen(false);
+    };
+
+    const handleSendTestTemplate = async () => {
+        if (!selectedTemplate) return;
+
+        setLoading(true);
+
+        try {
+            await axios.post('/api/system/test-template', {
+                template_id: selectedTemplate.id,
+                client_id: testTemplateClient,
+                certificate_id: testTemplateEquipment
+            });
+            
+            toast.success('Teste de envio enviado com sucesso!');
+            closeTestTemplateModal();
+        } catch (error) {
+            console.error('Erro ao enviar teste de envio:', error);
+            toast.error('Erro ao enviar teste de envio');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Buscar equipamentos ao selecionar cliente
+    useEffect(() => {
+        if (testTemplateClient) {
+            axios.get(`/api/clients/${testTemplateClient}/certificates`).then(res => setEquipments(res.data));
+        } else {
+            setEquipments([]);
+        }
+    }, [testTemplateClient]);
 
     const TabButton = ({ id, title, icon: Icon }) => (
         <button
@@ -571,7 +623,14 @@ const SystemSettings = () => {
                                     />
                                 </div>
 
-                                <div className="flex justify-end space-x-3">
+                                <div className="flex items-center space-x-3 mt-4">
+                                    <input
+                                        type="email"
+                                        value={testEmail}
+                                        onChange={e => setTestEmail(e.target.value)}
+                                        placeholder="Digite um email para teste"
+                                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
                                     <button
                                         type="button"
                                         onClick={handleTestEmail}
@@ -580,6 +639,9 @@ const SystemSettings = () => {
                                         <TestTube className="w-4 h-4 mr-2" />
                                         Testar Email
                                     </button>
+                                </div>
+
+                                <div className="flex justify-end space-x-3">
                                     <button
                                         type="submit"
                                         disabled={loading}
@@ -607,7 +669,7 @@ const SystemSettings = () => {
                                     <div>
                                         <h4 className="font-medium text-blue-800 mb-2">Informações do Cliente:</h4>
                                         <ul className="text-sm text-blue-700 space-y-1">
-                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_name&#125;&#125;</code> - Nome da empresa</li>
+                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_name&#125;&#125;</code> - Razão do cliente</li>
                                             <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_email&#125;&#125;</code> - Email do cliente</li>
                                             <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_cnpj&#125;&#125;</code> - CNPJ do cliente</li>
                                         </ul>
@@ -644,6 +706,13 @@ const SystemSettings = () => {
                                                     <Edit className="w-4 h-4 mr-1" />
                                                     Editar
                                                 </button>
+                                                <button
+                                                    onClick={() => openTestTemplateModal(template)}
+                                                    className="flex items-center px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                                >
+                                                    <TestTube className="w-4 h-4 mr-1" />
+                                                    Testar Envio
+                                                </button>
                                             </div>
                                         </div>
                                         <p className="text-sm text-gray-600 mb-2">
@@ -673,6 +742,29 @@ const SystemSettings = () => {
                                         </div>
 
                                         <div className="space-y-4">
+                                            {/* Legendas das variáveis disponíveis */}
+                                            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                                                <h3 className="text-lg font-medium text-blue-900 mb-3">Variáveis Disponíveis</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <h4 className="font-medium text-blue-800 mb-2">Informações do Cliente:</h4>
+                                                        <ul className="text-sm text-blue-700 space-y-1">
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_name&#125;&#125;</code> - Razão do cliente</li>
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_email&#125;&#125;</code> - Email do cliente</li>
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$client_cnpj&#125;&#125;</code> - CNPJ do cliente</li>
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-medium text-blue-800 mb-2">Informações do Certificado:</h4>
+                                                        <ul className="text-sm text-blue-700 space-y-1">
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$certificate_number&#125;&#125;</code> - Número do certificado</li>
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$equipment_name&#125;&#125;</code> - Nome do equipamento</li>
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$expiry_date&#125;&#125;</code> - Data de expiração</li>
+                                                            <li><code className="bg-blue-100 px-1 rounded">&#123;&#123;$days_until_expiry&#125;&#125;</code> - Dias até expirar</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Nome do Template
@@ -736,6 +828,59 @@ const SystemSettings = () => {
                                                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                                             >
                                                 Salvar Template
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Modal de Teste de Template */}
+                            {testTemplateModalOpen && (
+                                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h2 className="text-lg font-semibold text-gray-900">Testar Envio de Template</h2>
+                                            <button onClick={closeTestTemplateModal} className="text-gray-400 hover:text-gray-600">✕</button>
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Cliente</label>
+                                            <select
+                                                value={testTemplateClient}
+                                                onChange={e => setTestTemplateClient(e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            >
+                                                <option value="">Selecione um cliente</option>
+                                                {clients.map(client => (
+                                                    <option key={client.id} value={client.id}>{client.company_name} ({client.email})</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="mb-4">
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Equipamento</label>
+                                            <select
+                                                value={testTemplateEquipment}
+                                                onChange={e => setTestTemplateEquipment(e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                disabled={!testTemplateClient}
+                                            >
+                                                <option value="">Selecione um equipamento</option>
+                                                {equipments.map(eq => (
+                                                    <option key={eq.id} value={eq.id}>{eq.equipment_name} - {eq.certificate_number}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex justify-end space-x-3">
+                                            <button
+                                                onClick={closeTestTemplateModal}
+                                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSendTestTemplate}
+                                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                            >
+                                                Enviar Teste
                                             </button>
                                         </div>
                                     </div>

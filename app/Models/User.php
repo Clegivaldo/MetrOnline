@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\Permission;
 
 class User extends Authenticatable
 {
@@ -70,11 +71,31 @@ class User extends Authenticatable
     }
 
     /**
-     * Get certificates uploaded by this user
+     * Certificados enviados por este usuário
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany<Certificate>
      */
     public function certificates()
     {
         return $this->hasMany(Certificate::class, 'uploaded_by');
+    }
+
+    /**
+     * Relação com permissões (many-to-many)
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions');
+    }
+
+    /**
+     * Checa se o usuário tem uma permissão específica
+     */
+    public function hasPermission($permission)
+    {
+        if ($this->role === 'admin') {
+            return true;
+        }
+        return $this->permissions()->where('name', $permission)->exists();
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Log;
 
 class SystemController extends Controller
 {
@@ -96,7 +97,7 @@ class SystemController extends Controller
             return response()->json(['message' => 'Configurações atualizadas com sucesso']);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao atualizar configurações: ' . $e->getMessage());
+            Log::error('Erro ao atualizar configurações: ' . $e->getMessage());
             return response()->json(['error' => 'Erro interno do servidor: ' . $e->getMessage()], 500);
         }
     }
@@ -147,6 +148,7 @@ class SystemController extends Controller
             return response()->json(['message' => 'Email de teste enviado com sucesso']);
 
         } catch (\Exception $e) {
+            Log::error('Erro ao enviar email de teste: ' . $e->getMessage());
             return response()->json(['error' => 'Erro ao enviar email de teste: ' . $e->getMessage()], 500);
         }
     }
@@ -203,7 +205,7 @@ class SystemController extends Controller
             return response()->json(['message' => 'Template atualizado com sucesso']);
 
         } catch (\Exception $e) {
-            \Log::error('Erro ao atualizar template: ' . $e->getMessage());
+            Log::error('Erro ao atualizar template: ' . $e->getMessage());
             return response()->json(['error' => 'Erro interno do servidor: ' . $e->getMessage()], 500);
         }
     }
@@ -267,5 +269,71 @@ class SystemController extends Controller
         $bytes /= pow(1024, $pow);
         
         return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Testar envio de template de email
+     */
+    public function testTemplateEmail(Request $request)
+    {
+        if ($request->user()->role !== 'admin') {
+            return response()->json(['error' => 'Acesso negado'], 403);
+        }
+
+        $request->validate([
+            'template_id' => 'required|integer|exists:email_templates,id',
+            'client_id' => 'required|integer|exists:clients,id',
+            'certificate_id' => 'required|integer|exists:certificates,id',
+        ]);
+
+        try {
+            $template = EmailTemplate::findOrFail($request->template_id);
+            $client = \App\Models\Client::findOrFail($request->client_id);
+            $certificate = \App\Models\Certificate::findOrFail($request->certificate_id);
+            $emailSettings = SystemSetting::getEmailSettings();
+
+            Config::set('mail.mailers.smtp.host', $emailSettings['smtp_host']);
+            Config::set('mail.mailers.smtp.port', $emailSettings['smtp_port']);
+            Config::set('mail.mailers.smtp.username', $emailSettings['smtp_username']);
+            Config::set('mail.mailers.smtp.password', $emailSettings['smtp_password']);
+            Config::set('mail.mailers.smtp.encryption', $emailSettings['smtp_encryption']);
+            Config::set('mail.from.address', $emailSettings['from_email']);
+            Config::set('mail.from.name', $emailSettings['from_name']);
+
+            // Formatar datas para d/m/Y
+            $calibration_date = $certificate->calibration_date ? \Carbon\Carbon::parse($certificate->calibration_date)->format('d/m/Y') : '';
+            $expiry_date = $certificate->expiry_date ? \Carbon\Carbon::parse($certificate->expiry_date)->format('d/m/Y') : '';
+            $next_calibration_date = $certificate->next_calibration_date ? \Carbon\Carbon::parse($certificate->next_calibration_date)->format('d/m/Y') : '';
+            $vars = [
+                'client_name' => $client->company_name,
+                'client_email' => $client->email,
+                'client_cnpj' => $client->cnpj,
+                'certificate_number' => $certificate->certificate_number,
+                'equipment_name' => $certificate->equipment_name,
+                'calibration_date' => $calibration_date,
+                'expiry_date' => $expiry_date,
+                'next_calibration_date' => $next_calibration_date,
+                'days_until_expiry' => $certificate->expiry_date ? (\Carbon\Carbon::parse($certificate->expiry_date)->diffInDays(now(), false)) : '',
+                'system_url' => config('app.url'),
+                'current_date' => now()->format('d/m/Y'),
+            ];
+            $body = $template->body;
+            $subject = $template->subject;
+            foreach ($vars as $key => $value) {
+                $body = preg_replace('/\{\{\s*\$?' . preg_quote($key, '/') . '\s*\}\}/i', $value, $body);
+                $subject = preg_replace('/\{\{\s*\$?' . preg_quote($key, '/') . '\s*\}\}/i', $value, $subject);
+            }
+
+            Mail::send([], [], function ($message) use ($client, $subject, $body) {
+                $message->to($client->email)
+                        ->subject($subject . ' (Teste)')
+                        ->html($body);
+            });
+
+            return response()->json(['message' => 'Email de teste enviado com sucesso']);
+        } catch (\Exception $e) {
+            Log::error('Erro ao enviar email de teste: ' . $e->getMessage());
+            return response()->json(['error' => 'Erro ao enviar email de teste: ' . $e->getMessage()], 500);
+        }
     }
 }

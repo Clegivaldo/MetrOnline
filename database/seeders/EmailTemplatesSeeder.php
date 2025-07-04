@@ -15,64 +15,80 @@ class EmailTemplatesSeeder extends Seeder
     {
         \App\Models\EmailTemplate::truncate();
 
-        EmailTemplate::create([
-            'name' => 'Notificação de Certificado Expirando',
-            'type' => 'expiring',
-            'subject' => 'Certificado Expirando - {{company_name}}',
-            'body' => '
-                <h2>Certificado Expirando</h2>
-                <p>Olá {{client_name}},</p>
-                <p>O certificado do equipamento <strong>{{equipment_name}}</strong> irá expirar em {{days_until_expiry}} dias.</p>
-                <p><strong>Detalhes do Certificado:</strong></p>
-                <ul>
-                    <li>Número: {{certificate_number}}</li>
-                    <li>Equipamento: {{equipment_name}}</li>
-                    <li>Data de Calibração: {{calibration_date}}</li>
-                    <li>Data de Expiração: {{expiry_date}}</li>
-                </ul>
-                <p>Entre em contato conosco para agendar uma nova calibração.</p>
-                <p>Atenciosamente,<br>{{company_name}}</p>
-            ',
-            'is_active' => true,
-        ]);
-
-        EmailTemplate::create([
+        // Template para novo certificado
+        \App\Models\EmailTemplate::updateOrCreate([
+            'type' => 'certificate_created',
+        ], [
             'name' => 'Certificado Criado',
-            'type' => 'created',
-            'subject' => 'Novo Certificado Criado - {{company_name}}',
+            'subject' => 'Novo Certificado de Calibração - {{ $certificate_number }}',
             'body' => '
-                <h2>Certificado Criado</h2>
-                <p>Olá {{client_name}},</p>
-                <p>Um novo certificado foi criado para o equipamento <strong>{{equipment_name}}</strong>.</p>
-                <p><strong>Detalhes do Certificado:</strong></p>
+                <h2>Novo certificado de calibração</h2>
+                <p>Olá {{ $client_name }},</p>
+                <p>Um novo certificado foi cadastrado no sistema.</p>
                 <ul>
-                    <li>Número: {{certificate_number}}</li>
-                    <li>Equipamento: {{equipment_name}}</li>
-                    <li>Data de Calibração: {{calibration_date}}</li>
-                    <li>Data de Expiração: {{expiry_date}}</li>
-                </ul>
-                <p>Atenciosamente,<br>{{company_name}}</p>
-            ',
+                    <li><strong>Número do Certificado:</strong> {{ $certificate_number }}</li>
+                    <li><strong>Equipamento:</strong> {{ $equipment_name }}</li>
+                    <li><strong>Data de Calibração:</strong> {{ $calibration_date }}</li>
+                    <li><strong>Data de Expiração:</strong> {{ $expiry_date }}</li>
+                </ul><p>Acesse a plataforma para baixar o certificado.</p>
+                <p>{{ $company_website }}</p>
+                <p>Atenciosamente,<br>Sistema de Metrologia</p>',
             'is_active' => true,
         ]);
-
-        EmailTemplate::create([
-            'name' => 'Certificado Atualizado',
-            'type' => 'updated',
-            'subject' => 'Certificado Atualizado - {{company_name}}',
+        // Template para certificado editado
+        \App\Models\EmailTemplate::updateOrCreate([
+            'type' => 'certificate_updated',
+        ], [
+            'name' => 'Certificado Editado',
+            'subject' => 'Certificado Atualizado - {{ $certificate_number }}',
             'body' => '
-                <h2>Certificado Atualizado</h2>
-                <p>Olá {{client_name}},</p>
-                <p>O certificado do equipamento <strong>{{equipment_name}}</strong> foi atualizado.</p>
-                <p><strong>Detalhes do Certificado:</strong></p>
+                <h2>Certificado atualizado</h2>
+                <p>Olá {{ $client_name }},</p><p>Um certificado foi atualizado no sistema.</p>
                 <ul>
-                    <li>Número: {{certificate_number}}</li>
-                    <li>Equipamento: {{equipment_name}}</li>
-                    <li>Data de Calibração: {{calibration_date}}</li>
-                    <li>Data de Expiração: {{expiry_date}}</li>
-                </ul>
-                <p>Atenciosamente,<br>{{company_name}}</p>
-            ',
+                    <li><strong>Número do Certificado:</strong> {{ $certificate_number }}</li>
+                    <li><strong>Equipamento:</strong> {{ $equipment_name }}</li>
+                    <li><strong>Data de Calibração:</strong> {{ $calibration_date }}</li>
+                    <li><strong>Data de Expiração:</strong> {{ $expiry_date }}</li>
+                </ul><p>Acesse a plataforma para baixar o certificado.</p>
+                <p>{{ $company_website }}</p>
+                <p>Atenciosamente,<br>Sistema de Metrologia</p>',
+            'is_active' => true,
+        ]);
+        // Template para certificado expirando
+        \App\Models\EmailTemplate::updateOrCreate([
+            'type' => 'certificate_expiring',
+        ], [
+            'name' => 'Certificado Expirando',
+            'subject' => 'Certificado Expirando em Breve - {{ $certificate_number }}',
+            'body' => '
+                <h2>Certificado expirando</h2>
+                <p>Olá {{ $client_name }},</p>
+                <p>O certificado {{ $certificate_number }} está prestes a expirar.</p>
+                <ul>
+                    <li><strong>Equipamento:</strong> {{ $equipment_name }}</li>
+                    <li><strong>Data de Expiração:</strong> {{ $expiry_date }}</li>
+                    <li><strong>Dias até expirar:</strong> {{ $days_until_expiry }}</li>
+                </ul><p>Renove o certificado para manter a conformidade.</p>
+                <p>{{ $company_website }}</p>
+                <p>Atenciosamente,<br>Sistema de Metrologia</p>',
+            'is_active' => true,
+        ]);
+        // Template para certificado expirado
+        \App\Models\EmailTemplate::updateOrCreate([
+            'type' => 'certificate_expired',
+        ], [
+            'name' => 'Certificado Expirado',
+            'subject' => 'Certificado Expirado - {{ $certificate_number }}',
+            'body' => '
+                <h2>Certificado expirado</h2>
+                <p>Olá {{ $client_name }},</p>
+                <p>O certificado {{ $certificate_number }} expirou.</p>
+                <ul>
+                    <li><strong>Equipamento:</strong> {{ $equipment_name }}</li>
+                    <li><strong>Data de Expiração:</strong> {{ $expiry_date }}</li>
+                </ul><p>Renove o certificado para manter a conformidade.</p>
+                <p>{{ $company_website }}</p>
+                <p>Atenciosamente,<br>Sistema de Metrologia</p>',
             'is_active' => true,
         ]);
     }

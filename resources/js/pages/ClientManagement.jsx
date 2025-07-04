@@ -11,7 +11,8 @@ import {
     Building2,
     Mail,
     Phone,
-    MapPin
+    MapPin,
+    Key
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -265,6 +266,22 @@ const ClientManagement = () => {
                                         title="Excluir"
                                     >
                                         <Trash2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={async () => {
+                                            if (window.confirm('Deseja realmente resetar a senha deste cliente?')) {
+                                                try {
+                                                    await axios.post(`/api/clients/${client.id}/reset-password`);
+                                                    toast.success('Senha redefinida e enviada para o email do cliente!');
+                                                } catch (err) {
+                                                    toast.error('Erro ao resetar senha do cliente');
+                                                }
+                                            }
+                                        }}
+                                        className="p-2 text-yellow-600 hover:bg-yellow-100 hover:text-yellow-700 rounded-lg transition-colors ml-2"
+                                        title="Resetar senha do cliente"
+                                    >
+                                        <Key className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>

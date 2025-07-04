@@ -48,6 +48,7 @@ const CertificateManagement = () => {
         accreditation_number: '',
         notes: ''
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         fetchCertificates();
@@ -77,15 +78,18 @@ const CertificateManagement = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSubmitting(true);
         
         if (!selectedFile && !editingCertificate) {
             toast.error('Por favor, selecione um arquivo PDF');
+            setIsSubmitting(false);
             return;
         }
 
         const formDataToSend = new FormData();
+        // Sempre envie todos os campos obrigatórios, mas apenas se estiverem preenchidos
         Object.keys(formData).forEach(key => {
-            if (formData[key]) {
+            if (formData[key] !== undefined && formData[key] !== null && formData[key] !== '') {
                 formDataToSend.append(key, formData[key]);
             }
         });
@@ -94,9 +98,22 @@ const CertificateManagement = () => {
             formDataToSend.append('certificate', selectedFile);
         }
 
+        // Validação dos campos obrigatórios
+        const obrigatorios = ['client_id', 'certificate_number', 'equipment_name', 'calibration_date', 'expiry_date'];
+        for (const campo of obrigatorios) {
+            if (!formData[campo]) {
+                toast.error('Preencha todos os campos obrigatórios!');
+                setIsSubmitting(false);
+                return;
+            }
+        }
+
         try {
             if (editingCertificate) {
-                await axios.put(`/api/certificates/${editingCertificate.id}`, formDataToSend, {
+                // Adiciona log dos dados enviados para depuração
+                console.log('Dados enviados para edição de certificado:', Object.fromEntries(formDataToSend.entries()));
+                formDataToSend.append('_method', 'PUT');
+                await axios.post(`/api/certificates/${editingCertificate.id}`, formDataToSend, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
                 toast.success('Certificado atualizado com sucesso!');
@@ -126,6 +143,8 @@ const CertificateManagement = () => {
         } catch (error) {
             console.error('Erro ao salvar certificado:', error);
             toast.error('Erro ao salvar certificado');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -745,9 +764,20 @@ const CertificateManagement = () => {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                                        disabled={isSubmitting}
                                     >
-                                        {editingCertificate ? 'Atualizar' : 'Criar'} Certificado
+                                        {isSubmitting ? (
+                                            <>
+                                                <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+                                                </svg>
+                                                Salvando...
+                                            </>
+                                        ) : (
+                                            editingCertificate ? 'Atualizar Certificado' : 'Criar Certificado'
+                                        )}
                                     </button>
                                 </div>
                             </form>

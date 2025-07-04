@@ -35,43 +35,63 @@ class SendCertificateNotification implements ShouldQueue
      */
     public function handle(): void
     {
+        Log::info('[SendCertificateNotification:INICIO]', ['certificado_id' => $this->certificate->id, 'type' => $this->type]);
         try {
             $client = $this->certificate->client;
             
             if (!$client || !$client->email) {
-                Log::warning('Cliente não encontrado ou sem email para certificado: ' . $this->certificate->id);
+                Log::warning('[SendCertificateNotification:SEM_EMAIL]', ['certificado_id' => $this->certificate->id]);
                 return;
             }
 
+            Log::info('[SendCertificateNotification:BUSCANDO_TEMPLATE]', ['type' => $this->type]);
             // Buscar template de email
-            $template = EmailTemplate::where('type', $this->type)->first();
+            $template = EmailTemplate::where('type', $this->type)->where('is_active', true)->first();
             
             if (!$template) {
-                Log::warning('Template de email não encontrado para tipo: ' . $this->type);
+                Log::warning('[SendCertificateNotification:TEMPLATE_NAO_ENCONTRADO]', ['type' => $this->type]);
                 return;
             }
+            Log::info('[SendCertificateNotification:TEMPLATE_OK]', ['template_id' => $template->id]);
 
             // Preparar dados para o template
             $data = $this->prepareTemplateData($template);
 
+            Log::info('[SendCertificateNotification:ANTES_ENVIO_EMAIL]', ['to' => $client->email]);
             // Enviar email
-            Mail::send([], [], function ($message) use ($client, $template, $data) {
+            $body = $template->body;
+            $subject = $template->subject;
+            foreach ($data as $key => $value) {
+                $body = str_replace([
+                    '{{ $' . $key . ' }}',
+                    '{{' . $key . '}}',
+                    '{{ $' . $key . '}}',
+                    '{{' . $key . ' }}',
+                ], $value, $body);
+                $subject = str_replace([
+                    '{{ $' . $key . ' }}',
+                    '{{' . $key . '}}',
+                    '{{ $' . $key . '}}',
+                    '{{' . $key . ' }}',
+                ], $value, $subject);
+            }
+            Mail::send([], [], function ($message) use ($client, $template, $body, $subject) {
                 $message->to($client->email, $client->company_name)
-                        ->subject($this->replaceVariables($template->subject, $data))
-                        ->html($this->replaceVariables($template->body, $data));
+                        ->subject($subject)
+                        ->html($body);
 
                 // Anexar certificado se existir
-                if ($this->certificate->file_path && file_exists(storage_path('app/public/' . $this->certificate->file_path))) {
+                if ($this->certificate->file_path) {
                     $message->attach(storage_path('app/public/' . $this->certificate->file_path), [
-                        'as' => $this->certificate->file_name ?? 'certificado.pdf'
+                        'as' => $this->certificate->file_name,
+                        'mime' => 'application/pdf',
                     ]);
                 }
             });
-
-            Log::info('Email enviado com sucesso para: ' . $client->email);
+            Log::info('[SendCertificateNotification:EMAIL_ENVIADO]', ['to' => $client->email]);
 
         } catch (\Exception $e) {
-            Log::error('Erro ao enviar email de certificado: ' . $e->getMessage());
+            Log::error('[SendCertificateNotification:ERRO]', ['exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             throw $e;
         }
     }
@@ -95,6 +115,7 @@ class SendCertificateNotification implements ShouldQueue
             'days_until_expiry' => $this->certificate->expiry_date->diffInDays(now()),
             'system_url' => config('app.url'),
             'current_date' => now()->format('d/m/Y'),
+            'company_website' => optional(\App\Models\CompanySetting::first())->website ?? config('app.url'),
         ];
     }
 

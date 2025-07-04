@@ -41,5 +41,27 @@ class InitialDataSeeder extends Seeder
             'city' => 'São Paulo',
             'state' => 'SP',
         ]);
+
+        // Criar categorias de documentos iniciais
+        \App\Models\DocumentCategory::insert([
+            [
+                'name' => 'Procedimentos',
+                'code' => 'PROC',
+                'description' => 'Procedimentos operacionais',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Instruções de Trabalho',
+                'code' => 'INST',
+                'description' => 'Instruções detalhadas de trabalho',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Formulários',
+                'code' => 'FORM',
+                'description' => 'Formulários e registros',
+                'is_active' => true,
+            ],
+        ]);
     }
 }

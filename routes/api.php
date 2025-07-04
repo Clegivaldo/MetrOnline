@@ -7,7 +7,17 @@ use App\Http\Controllers\ClientController;
 use App\Http\Controllers\CertificateController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SystemController;
+use App\Http\Controllers\DocumentCategoryController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentDistributionController;
 use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\RecordController;
+use App\Http\Controllers\QualificationController;
+use App\Http\Controllers\TrainingController;
+use App\Http\Controllers\EquipmentController;
+use App\Http\Controllers\CalibrationCertificateController;
+use App\Http\Controllers\NonConformityController;
+use App\Http\Controllers\InternalAuditController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,6 +85,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Clientes (apenas admin e user)
     Route::middleware('role:admin,user')->group(function () {
         Route::apiResource('clients', ClientController::class);
+        Route::get('/clients/{id}/certificates', [ClientController::class, 'certificates']);
+        Route::post('/clients/{id}/reset-password', [ClientController::class, 'resetPassword']);
     });
 
     // Certificados
@@ -84,6 +96,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/certificates/bulk-upload', [CertificateController::class, 'bulkUpload']);
     Route::post('/certificates/bulk-delete', [CertificateController::class, 'bulkDelete']);
     Route::get('/certificates/export', [CertificateController::class, 'export']);
+
+    // Gestão Documental
+    require __DIR__.'/documentos.php';
 
     // Usuários (apenas admin)
     Route::middleware('role:admin')->group(function () {
@@ -106,6 +121,7 @@ Route::middleware('auth:sanctum')->group(function () {
         // Templates de email
         Route::get('/system/email-templates', [SystemController::class, 'getEmailTemplates']);
         Route::put('/system/email-templates/{id}', [SystemController::class, 'updateEmailTemplate']);
+        Route::post('/system/test-template', [SystemController::class, 'testTemplateEmail']);
 
         // Auditoria
         Route::get('/audit-logs', [\App\Http\Controllers\AuditController::class, 'index']);
@@ -125,4 +141,39 @@ Route::middleware('auth:sanctum')->group(function () {
     // Perfil do usuário
     Route::get('/profile', [\App\Http\Controllers\UserController::class, 'profile']);
     Route::post('/profile/update', [\App\Http\Controllers\UserController::class, 'updateProfile']);
+
+    // Records
+    Route::apiResource('records', RecordController::class);
+
+    // Qualifications
+    Route::apiResource('qualifications', QualificationController::class);
+
+    // Trainings
+    Route::apiResource('trainings', TrainingController::class);
+
+    // Equipment
+    Route::apiResource('equipment', EquipmentController::class);
+
+    // Calibration Certificates
+    Route::apiResource('calibration-certificates', CalibrationCertificateController::class);
+
+    // Non-Conformities
+    Route::apiResource('non-conformities', NonConformityController::class);
+
+    // Internal Audits
+    Route::apiResource('internal-audits', InternalAuditController::class);
+
+    // Permissões
+    Route::get('/permissions', [\App\Http\Controllers\PermissionController::class, 'index']);
+    Route::post('/permissions', [\App\Http\Controllers\PermissionController::class, 'store']);
+    Route::put('/permissions/{permission}', [\App\Http\Controllers\PermissionController::class, 'update']);
+    Route::delete('/permissions/{permission}', [\App\Http\Controllers\PermissionController::class, 'destroy']);
+    // Usuário - permissões
+    Route::get('/users/{user}/permissions', [\App\Http\Controllers\PermissionController::class, 'userPermissions']);
+    Route::post('/users/{user}/permissions/toggle', [\App\Http\Controllers\PermissionController::class, 'toggleUserPermission']);
+    // Categorias de documentos
+    Route::get('/document-categories', [\App\Http\Controllers\DocumentCategoryController::class, 'index']);
+    Route::post('/document-categories', [\App\Http\Controllers\DocumentCategoryController::class, 'store']);
+    Route::put('/document-categories/{category}', [\App\Http\Controllers\DocumentCategoryController::class, 'update']);
+    Route::delete('/document-categories/{category}', [\App\Http\Controllers\DocumentCategoryController::class, 'destroy']);
 }); 

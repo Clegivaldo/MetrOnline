@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Mail;
 
 class ClientController extends Controller
 {
@@ -177,5 +178,55 @@ class ClientController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Erro ao consultar CNPJ'], 500);
         }
+    }
+
+    /**
+     * Retornar certificados do cliente
+     */
+    public function certificates($id)
+    {
+        $client = Client::findOrFail($id);
+        return response()->json($client->certificates()->get());
+    }
+
+    /**
+     * Resetar senha do cliente
+     */
+    public function resetPassword(Request $request, $id)
+    {
+        $client = Client::findOrFail($id);
+        $newPassword = substr(bin2hex(random_bytes(4)), 0, 8); // senha aleatória de 8 caracteres
+        $client->password = bcrypt($newPassword);
+        $client->save();
+
+        // Enviar email para o cliente
+        $emailSettings = \App\Models\SystemSetting::getEmailSettings();
+        \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.host', $emailSettings['smtp_host']);
+        \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.port', $emailSettings['smtp_port']);
+        \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.username', $emailSettings['smtp_username']);
+        \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.password', $emailSettings['smtp_password']);
+        \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.encryption', $emailSettings['smtp_encryption']);
+        \Illuminate\Support\Facades\Config::set('mail.from.address', $emailSettings['from_email']);
+        \Illuminate\Support\Facades\Config::set('mail.from.name', $emailSettings['from_name']);
+
+        // Buscar site da empresa nas configurações
+        $companySite = \App\Models\CompanySetting::first()->website ?? config('app.url');
+        $body = "<h2>Senha redefinida</h2>
+        <p>Olá {$client->company_name},</p>
+        <p>Sua senha foi redefinida pelo administrador. Use os dados abaixo para acessar o sistema:</p>
+        <ul>
+            <li><strong>Email de acesso:</strong> {$client->email}</li>
+            <li><strong>Nova senha:</strong> {$newPassword}</li>
+            <li><strong>Link de acesso:</strong> <a href='{$companySite}'>{$companySite}</a></li>
+        </ul>
+        <p>Recomendamos alterar sua senha após o primeiro acesso.</p>";
+
+        \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($client, $body) {
+            $message->to($client->email)
+                ->subject('Senha redefinida')
+                ->html($body);
+        });
+
+        return response()->json(['message' => 'Senha redefinida e enviada para o email do cliente.']);
     }
 }

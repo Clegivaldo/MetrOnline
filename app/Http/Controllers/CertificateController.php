@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Response;
+use App\Models\EmailTemplate;
+use Illuminate\Support\Facades\Mail;
 
 class CertificateController extends Controller
 {
@@ -131,9 +133,12 @@ class CertificateController extends Controller
                 'user_agent' => $request->userAgent(),
             ]);
 
+            // Envio de email em background (job)
+            \App\Jobs\SendCertificateNotification::dispatch($certificate, 'certificate_created');
+
             return response()->json($certificate->load(['client', 'uploadedBy']), 201);
         } catch (\Exception $e) {
-            \Log::error('Erro ao criar certificado: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Erro ao criar certificado: ' . $e->getMessage());
             return response()->json(['error' => 'Erro ao criar certificado: ' . $e->getMessage()], 500);
         }
     }
@@ -159,27 +164,33 @@ class CertificateController extends Controller
      */
     public function update(Request $request, Certificate $certificate)
     {
-        $request->validate([
-            'client_id' => 'required|exists:clients,id',
-            'certificate_number' => ['required', 'string', Rule::unique('certificates')->ignore($certificate->id)],
-            'equipment_name' => 'required|string|max:255',
-            'equipment_model' => 'nullable|string|max:255',
-            'equipment_serial' => 'nullable|string|max:255',
-            'calibration_date' => 'required|date',
-            'expiry_date' => 'required|date|after:calibration_date',
-            'next_calibration_date' => 'nullable|date|after:calibration_date',
-            'calibration_company' => 'nullable|string|max:255',
-            'uncertainty' => 'nullable|string|max:255',
-            'measurement_range' => 'nullable|string|max:255',
-            'calibration_standard' => 'nullable|string|max:255',
-            'environmental_conditions' => 'nullable|string|max:255',
-            'traceability' => 'nullable|string|max:255',
-            'certificate_type' => 'nullable|string|max:255',
-            'accreditation_body' => 'nullable|string|max:255',
-            'accreditation_number' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-            'certificate' => 'nullable|file|mimes:pdf|max:10240',
-        ]);
+        \Illuminate\Support\Facades\Log::info('Recebido para update de certificado', $request->all());
+        try {
+            $request->validate([
+                'client_id' => 'required|exists:clients,id',
+                'certificate_number' => ['required', 'string', Rule::unique('certificates')->ignore($certificate->id)],
+                'equipment_name' => 'required|string|max:255',
+                'equipment_model' => 'nullable|string|max:255',
+                'equipment_serial' => 'nullable|string|max:255',
+                'calibration_date' => 'required|date',
+                'expiry_date' => 'required|date|after:calibration_date',
+                'next_calibration_date' => 'nullable|date|after:calibration_date',
+                'calibration_company' => 'nullable|string|max:255',
+                'uncertainty' => 'nullable|string|max:255',
+                'measurement_range' => 'nullable|string|max:255',
+                'calibration_standard' => 'nullable|string|max:255',
+                'environmental_conditions' => 'nullable|string|max:255',
+                'traceability' => 'nullable|string|max:255',
+                'certificate_type' => 'nullable|string|max:255',
+                'accreditation_body' => 'nullable|string|max:255',
+                'accreditation_number' => 'nullable|string|max:255',
+                'notes' => 'nullable|string',
+                'certificate' => 'nullable|file|mimes:pdf|max:10240',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \Illuminate\Support\Facades\Log::error('Erro de validação ao editar certificado', $e->errors());
+            throw $e;
+        }
 
         $data = $request->only([
             'client_id', 'certificate_number', 'equipment_name', 'equipment_model', 'equipment_serial',
@@ -214,6 +225,57 @@ class CertificateController extends Controller
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
+
+        // Envio automático de email ao editar certificado
+        $template = EmailTemplate::getByType('certificate_updated');
+        if ($template && $certificate->client && $certificate->client->email) {
+            try {
+                \Illuminate\Support\Facades\Log::info('Iniciando envio de email automático de certificado atualizado para: ' . $certificate->client->email);
+                $emailSettings = \App\Models\SystemSetting::getEmailSettings();
+                \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.host', $emailSettings['smtp_host']);
+                \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.port', $emailSettings['smtp_port']);
+                \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.username', $emailSettings['smtp_username']);
+                \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.password', $emailSettings['smtp_password']);
+                \Illuminate\Support\Facades\Config::set('mail.mailers.smtp.encryption', $emailSettings['smtp_encryption']);
+                \Illuminate\Support\Facades\Config::set('mail.from.address', $emailSettings['from_email']);
+                \Illuminate\Support\Facades\Config::set('mail.from.name', $emailSettings['from_name']);
+
+                // Formatar datas para d/m/Y
+                $calibration_date = $certificate->calibration_date ? \Carbon\Carbon::parse($certificate->calibration_date)->format('d/m/Y') : '';
+                $expiry_date = $certificate->expiry_date ? \Carbon\Carbon::parse($certificate->expiry_date)->format('d/m/Y') : '';
+                $next_calibration_date = $certificate->next_calibration_date ? \Carbon\Carbon::parse($certificate->next_calibration_date)->format('d/m/Y') : '';
+                // Buscar site da empresa
+                $companyWebsite = optional(\App\Models\CompanySetting::first())->website ?? config('app.url');
+                $vars = [
+                    'client_name' => $certificate->client->company_name,
+                    'client_email' => $certificate->client->email,
+                    'client_cnpj' => $certificate->client->cnpj,
+                    'certificate_number' => $certificate->certificate_number,
+                    'equipment_name' => $certificate->equipment_name,
+                    'calibration_date' => $calibration_date,
+                    'expiry_date' => $expiry_date,
+                    'next_calibration_date' => $next_calibration_date,
+                    'days_until_expiry' => $certificate->expiry_date ? (\Carbon\Carbon::parse($certificate->expiry_date)->diffInDays(now(), false)) : '',
+                    'system_url' => config('app.url'),
+                    'current_date' => now()->format('d/m/Y'),
+                    'company_website' => $companyWebsite,
+                ];
+                $body = $template->body;
+                $subject = $template->subject;
+                foreach ($vars as $key => $value) {
+                    $body = preg_replace('/\{\{\s*\$?' . preg_quote($key, '/') . '\s*\}\}/i', $value, $body);
+                    $subject = preg_replace('/\{\{\s*\$?' . preg_quote($key, '/') . '\s*\}\}/i', $value, $subject);
+                }
+                Mail::send([], [], function ($message) use ($certificate, $subject, $body) {
+                    $message->to($certificate->client->email)
+                        ->subject($subject)
+                        ->html($body);
+                });
+                \Illuminate\Support\Facades\Log::info('Email automático de certificado atualizado enviado com sucesso para: ' . $certificate->client->email);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Erro ao enviar email automático de certificado atualizado: ' . $e->getMessage());
+            }
+        }
 
         return response()->json($certificate->load(['client', 'uploadedBy']));
     }

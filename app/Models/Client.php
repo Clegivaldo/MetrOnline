@@ -66,14 +66,6 @@ class Client extends Authenticatable
     }
 
     /**
-     * Get the route key for the model.
-     */
-    public function getRouteKeyName()
-    {
-        return 'cnpj';
-    }
-
-    /**
      * Format CNPJ for display
      */
     public function getFormattedCnpjAttribute()

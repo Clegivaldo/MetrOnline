@@ -50,6 +50,7 @@ class EmailTemplate extends Model
             'days_until_expiry' => 'Dias até a expiração',
             'system_url' => 'URL do sistema',
             'current_date' => 'Data atual',
+            'company_website' => 'Site da empresa (configuração)',
         ];
     }
 } 
