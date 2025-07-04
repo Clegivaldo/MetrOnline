@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import axios from 'axios';
+import DocumentOverview from './DocumentOverview';
 
 const DocumentDetail = () => {
   const { id } = useParams();
@@ -128,17 +129,23 @@ const DocumentDetail = () => {
         <div style={{ flexGrow: 1 }} />
         <button
           style={{ 
-            backgroundColor: '#4caf50', 
+            backgroundColor: document.file_path ? '#4caf50' : '#bbb',
             color: 'white', 
             padding: '8px 16px', 
             borderRadius: '4px', 
-            cursor: 'pointer',
+            cursor: document.file_path ? 'pointer' : 'not-allowed',
             marginRight: '8px'
           }}
-          onClick={handleDownload}
+          onClick={document.file_path ? handleDownload : undefined}
+          disabled={!document.file_path}
         >
           Baixar
         </button>
+        {!document.file_path && (
+          <span style={{ color: 'red', marginLeft: 8, fontSize: 13 }}>
+            Nenhum arquivo PDF disponível
+          </span>
+        )}
         <button
           style={{ 
             backgroundColor: '#4caf50', 

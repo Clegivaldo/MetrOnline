@@ -14,19 +14,11 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->foreignId('category_id')->constrained('document_categories');
-            $table->string('version');
-            $table->enum('status', ['rascunho', 'em_revisao', 'aprovado', 'obsoleto'])->default('rascunho');
-            $table->date('effective_date')->nullable();
-            $table->date('review_date')->nullable();
-            $table->string('file_path');
-            $table->string('file_name');
-            $table->string('file_type');
-            $table->unsignedBigInteger('file_size');
-            $table->foreignId('created_by')->constrained('users');
-            $table->foreignId('reviewed_by')->nullable()->constrained('users');
-            $table->dateTime('reviewed_at')->nullable();
-            $table->text('review_notes')->nullable();
+
             $table->boolean('is_controlled')->default(true);
+        $table->foreignId('created_by')->nullable()->constrained('users');
+        $table->string('file_path')->nullable();
+        $table->string('file_name')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

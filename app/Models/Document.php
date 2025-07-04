@@ -15,19 +15,12 @@ class Document extends Model
         'title',
         'description',
         'category_id',
-        'version',
-        'status',
-        'effective_date',
-        'review_date',
+        'is_controlled',
         'file_path',
         'file_name',
         'file_type',
         'file_size',
         'created_by',
-        'reviewed_by',
-        'reviewed_at',
-        'review_notes',
-        'is_controlled'
     ];
 
     protected $dates = [

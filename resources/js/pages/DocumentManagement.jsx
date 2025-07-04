@@ -5,6 +5,8 @@ import { useSnackbar } from 'notistack';
 import axios from 'axios';
 // 1. Remover import DocumentList from '../components/documents/DocumentList';
 import DocumentCreate from './DocumentCreate';
+import DocumentEdit from '../components/documents/DocumentEdit';
+import DocumentViewModal from '../components/documents/DocumentViewModal';
 
 const DocumentManagement = () => {
   const navigate = useNavigate();
@@ -26,6 +28,7 @@ const DocumentManagement = () => {
   const [savingCategory, setSavingCategory] = useState(false);
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [editingDocument, setEditingDocument] = useState(null);
+  const [viewingDocumentId, setViewingDocumentId] = useState(null);
   
   // Buscar documentos
   const fetchDocuments = useCallback(async () => {
@@ -100,7 +103,7 @@ const DocumentManagement = () => {
   };
   
   const handleViewDocument = (document) => {
-    navigate(`/documents/${document.id}`);
+    setViewingDocumentId(document.id);
   };
   
   const handleEditDocument = (document) => {
@@ -368,15 +371,31 @@ const DocumentManagement = () => {
                   onClick={() => setShowDocumentModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  ✕
+                  ×
                 </button>
               </div>
-              <DocumentCreate
-                editingDocument={editingDocument}
-                onClose={() => setShowDocumentModal(false)}
-                onSaved={() => { setShowDocumentModal(false); fetchDocuments(); }}
-              />
+              {editingDocument ? (
+                <DocumentEdit
+                  key={editingDocument.id}
+                  id={editingDocument.id}
+                  onClose={() => setShowDocumentModal(false)}
+                  onSaved={() => { setShowDocumentModal(false); fetchDocuments(); }}
+                />
+              ) : (
+                <DocumentCreate
+                  onClose={() => setShowDocumentModal(false)}
+                  onSaved={() => { setShowDocumentModal(false); fetchDocuments(); }}
+                />
+              )}
             </div>
+          </div>
+        )}
+        {viewingDocumentId && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <DocumentViewModal
+              id={viewingDocumentId}
+              onClose={() => setViewingDocumentId(null)}
+            />
           </div>
         )}
         {/* Modal Nova Categoria */}

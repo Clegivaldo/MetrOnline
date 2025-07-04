@@ -57,53 +57,37 @@ class DocumentController extends Controller
                 return response()->json(['message' => 'Ação não autorizada.'], 403);
             }
             Log::info('[DocumentController@store:PERMISSAO_OK]', ['user_id' => $user?->id, 'role' => $user?->role]);
-            $validated = $request->validate([
+            // Validação dos dados do documento e do arquivo
+            $validatedDoc = $request->validate([
                 'title' => 'required|string|max:255',
                 'description' => 'nullable|string',
                 'category_id' => 'required|exists:document_categories,id',
-                'version' => 'required|string|max:50',
-                'effective_date' => 'required|date',
-                'review_date' => 'required|date|after:effective_date',
-                'file' => 'required|file|max:10240', // 10MB max
-                'is_controlled' => 'boolean'
+                'is_controlled' => 'boolean',
+                'code' => 'required|string|max:255|unique:documents,code',
+                'file' => 'nullable|file|mimes:pdf|max:10240',
             ]);
-            Log::info('[DocumentController@store:VALIDACAO_OK]', $validated);
+            Log::info('[DocumentController@store:VALIDACAO_OK]', $validatedDoc);
 
-            // Gerar código único para o documento
-            $category = DocumentCategory::findOrFail($validated['category_id']);
-            $code = $this->generateDocumentCode($category);
-
-            // Fazer upload do arquivo
-            $file = $request->file('file');
-            $path = $file->store('documents/' . now()->format('Y/m'), 'public');
+            // Upload do arquivo, se existir
+            $filePath = null;
+            $fileName = null;
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $fileName = $file->getClientOriginalName();
+                $filePath = $file->store('documents', 'public');
+                Log::info('[DocumentController@store:UPLOAD_OK]', ['file_name' => $fileName, 'file_path' => $filePath]);
+            }
 
             // Criar documento
             $document = Document::create([
-                'code' => $code,
-                'title' => $validated['title'],
-                'description' => $validated['description'] ?? null,
-                'category_id' => $validated['category_id'],
-                'version' => $validated['version'],
-                'status' => 'rascunho',
-                'effective_date' => $validated['effective_date'],
-                'review_date' => $validated['review_date'],
-                'file_path' => $path,
-                'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getClientMimeType(),
-                'file_size' => $file->getSize(),
-                'created_by' => auth()?->id(),
-                'is_controlled' => $validated['is_controlled'] ?? true,
-            ]);
-
-            // Criar primeira revisão
-            $document->revisions()->create([
-                'version' => $validated['version'],
-                'file_path' => $path,
-                'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getClientMimeType(),
-                'file_size' => $file->getSize(),
-                'created_by' => auth()?->id(),
-                'status' => 'rascunho',
+                'code' => $validatedDoc['code'],
+                'title' => $validatedDoc['title'],
+                'description' => $validatedDoc['description'] ?? null,
+                'category_id' => $validatedDoc['category_id'],
+                'is_controlled' => $validatedDoc['is_controlled'] ?? true,
+                'created_by' => $user?->id,
+                'file_path' => $filePath,
+                'file_name' => $fileName,
             ]);
 
             $user = auth()?->user();
@@ -129,13 +113,24 @@ class DocumentController extends Controller
 
     public function show(Document $document)
     {
-        return response()->json($document->load([
-            'category', 
-            'creator', 
-            'reviewer', 
-            'revisions.creator', 
-            'revisions.reviewer'
-        ]));
+        $document->load(['category', 'creator']);
+        $latestRevision = $document->revisions()->latest()->first();
+        return response()->json([
+            'id' => $document->id,
+            'title' => $document->title,
+            'code' => $document->code,
+            'description' => $document->description,
+            'category_id' => $document->category_id,
+            'category_name' => $document->category ? $document->category->name : null,
+            'is_controlled' => $document->is_controlled,
+            'file_name' => $latestRevision ? $latestRevision->file_name : $document->file_name,
+            'file_path' => $latestRevision ? $latestRevision->file_path : $document->file_path,
+            'version' => $latestRevision ? $latestRevision->version : null,
+            'created_by' => $document->created_by,
+            'created_by_name' => $document->creator ? $document->creator->name : null,
+            'created_at' => $document->created_at,
+            'updated_at' => $document->updated_at,
+        ]);
     }
 
     public function update(Request $request, Document $document)
@@ -147,58 +142,40 @@ class DocumentController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
             'category_id' => 'required|exists:document_categories,id',
-            'version' => 'required|string|max:50',
-            'status' => 'required|in:rascunho,em_revisao,aprovado,obsoleto',
-            'effective_date' => 'required|date',
-            'review_date' => 'required|date|after:effective_date',
-            'review_notes' => 'required_if:status,aprovado,obsoleto|nullable|string',
-            'file' => 'nullable|file|max:10240', // 10MB max
-            'changes' => 'nullable|string',
-            'is_controlled' => 'boolean'
+            'is_controlled' => 'boolean',
+            'code' => [
+                'required',
+                'string',
+                'max:255',
+                \Illuminate\Validation\Rule::unique('documents', 'code')->ignore($document->id),
+            ],
+            'file' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
-        // Se houver um novo arquivo, fazer upload
+        // Upload de novo arquivo, se fornecido
+        $filePath = $document->file_path;
+        $fileName = $document->file_name;
         if ($request->hasFile('file')) {
+            // Deleta o arquivo antigo, se existir
+            if ($filePath && \Storage::disk('public')->exists($filePath)) {
+                \Log::info('Deletando arquivo antigo ao atualizar documento', ['file_path' => $filePath]);
+                \Storage::disk('public')->delete($filePath);
+            }
             $file = $request->file('file');
-            $path = $file->store('documents/' . now()->format('Y/m'), 'public');
-
-            // Atualizar informações do arquivo
-            $document->update([
-                'file_path' => $path,
-                'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getClientMimeType(),
-                'file_size' => $file->getSize(),
-            ]);
-
-            // Criar nova revisão
-            $document->revisions()->create([
-                'version' => $validated['version'],
-                'changes' => $validated['changes'] ?? 'Atualização de arquivo',
-                'file_path' => $path,
-                'file_name' => $file->getClientOriginalName(),
-                'file_type' => $file->getClientMimeType(),
-                'file_size' => $file->getSize(),
-                'created_by' => auth()?->id(),
-                'status' => $validated['status'],
-                'reviewed_by' => $validated['status'] === 'aprovado' ? auth()?->id() : null,
-                'reviewed_at' => $validated['status'] === 'aprovado' ? now() : null,
-                'review_notes' => $validated['review_notes'] ?? null,
-            ]);
+            $fileName = $file->getClientOriginalName();
+            $filePath = $file->store('documents', 'public');
+            \Log::info('Novo arquivo enviado ao atualizar documento', ['file_name' => $fileName, 'file_path' => $filePath]);
         }
 
-        // Atualizar informações do documento
+        // Atualizar dados do documento
         $document->update([
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'category_id' => $validated['category_id'],
-            'version' => $validated['version'],
-            'status' => $validated['status'],
-            'effective_date' => $validated['effective_date'],
-            'review_date' => $validated['review_date'],
-            'review_notes' => $validated['review_notes'] ?? null,
-            'reviewed_by' => $validated['status'] === 'aprovado' ? auth()?->id() : $document->reviewed_by,
-            'reviewed_at' => $validated['status'] === 'aprovado' ? now() : $document->reviewed_at,
             'is_controlled' => $validated['is_controlled'] ?? $document->is_controlled,
+            'code' => $validated['code'],
+            'file_path' => $filePath,
+            'file_name' => $fileName,
         ]);
 
         $user = auth()?->user();
@@ -231,10 +208,19 @@ class DocumentController extends Controller
         }
 
         // Excluir arquivos físicos
-        Storage::delete([
-            $document->file_path,
-            ...$document->revisions->pluck('file_path')->toArray()
-        ]);
+        // Excluir arquivo principal se existir
+        if ($document->file_path && \Storage::disk('public')->exists($document->file_path)) {
+            \Log::info('Tentando deletar arquivo:', ['file_path' => $document->file_path]);
+            \Storage::disk('public')->delete($document->file_path);
+        }
+        // Excluir arquivos das revisões
+        if ($document->revisions && $document->revisions->count()) {
+            foreach ($document->revisions as $rev) {
+                if ($rev->file_path && \Storage::disk('public')->exists($rev->file_path)) {
+                    \Storage::disk('public')->delete($rev->file_path);
+                }
+            }
+        }
 
         // Excluir registros do banco de dados
         $document->revisions()->delete();
@@ -255,20 +241,27 @@ class DocumentController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return response()->json(null, 204);
+        return Storage::download($revision->file_path, $revision->file_name);
     }
 
+    // Download do PDF do documento (última revisão ou principal)
     public function download(Request $request, Document $document)
     {
-        if (Gate::denies('view-document', $document)) {
+        if (\Gate::denies('view-document', $document)) {
             return response()->json(['message' => 'Ação não autorizada.'], 403);
         }
-        if (!Storage::exists($document->file_path)) {
+
+        // Buscar última revisão
+        $latestRevision = $document->revisions()->latest()->first();
+        $filePath = $latestRevision ? $latestRevision->file_path : $document->file_path;
+        $fileName = $latestRevision ? $latestRevision->file_name : $document->file_name;
+
+        if (empty($filePath) || !\Storage::disk('public')->exists($filePath)) {
             return response()->json(['message' => 'Arquivo não encontrado.'], 404);
         }
 
         $user = auth()?->user();
-        AuditLog::create([
+        \App\Models\AuditLog::create([
             'action' => 'download',
             'user_email' => $user?->email,
             'user_role' => $user?->role,
@@ -281,16 +274,7 @@ class DocumentController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return Storage::download($document->file_path, $document->file_name);
-    }
-
-    public function downloadRevision(DocumentRevision $revision)
-    {
-        if (!Storage::exists($revision->file_path)) {
-            return response()->json(['message' => 'Arquivo não encontrado.'], 404);
-        }
-
-        return Storage::download($revision->file_path, $revision->file_name);
+        return \Storage::disk('public')->download($filePath, $fileName);
     }
 
     public function getCategories()

@@ -1,176 +1,47 @@
 import React from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  CardHeader,
-  Chip,
-  Divider,
-  Grid,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Paper,
-  Typography,
-  Avatar
-} from '@mui/material';
-import {
-  Description as DocumentIcon,
-  Category as CategoryIcon,
-  Update as UpdateIcon,
-  Person as PersonIcon,
-  CalendarToday as CalendarIcon,
-  Info as InfoIcon
-} from '@mui/icons-material';
+
 
 const DocumentOverview = ({ document, formatDate, getStatusIcon }) => {
   return (
-    <Grid container spacing={3}>
-      <Grid item xs={12} md={8}>
-        <Card>
-          <CardHeader 
-            title="Informações do Documento"
-            action={
-              <Chip 
-                icon={getStatusIcon(document.status)}
-                label={document.status_label || document.status}
-                color={
-                  document.status === 'aprovado' ? 'success' : 
-                  document.status === 'em_revisao' ? 'warning' :
-                  document.status === 'obsoleto' ? 'error' : 'default'
-                }
-                variant="outlined"
-              />
-            }
-          />
-          <Divider />
-          <CardContent>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <DocumentIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Título" 
-                  secondary={document.title}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <CategoryIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Categoria" 
-                  secondary={document.category?.name || 'Não especificada'}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <UpdateIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Versão" 
-                  secondary={`v${document.version}`}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <CalendarIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Data de Vigência" 
-                  secondary={formatDate(document.effective_date)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <CalendarIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Próxima Revisão" 
-                  secondary={formatDate(document.review_date)}
-                />
-              </ListItem>
-              
+    <div className="document-overview" style={{ display: 'flex', gap: 24 }}>
+      <div style={{ flex: 2 }}>
+        <div className="card" style={{ border: '1px solid #ccc', borderRadius: 8, marginBottom: 16 }}>
+          <div className="card-header" style={{ padding: 16, borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 'bold' }}>Informações do Documento</span>
+            <span style={{ padding: '4px 8px', borderRadius: 8, border: '1px solid #aaa', background: '#f5f5f5', fontSize: 12 }}>
+              {getStatusIcon(document.status)} {document.status_label || document.status}
+            </span>
+          </div>
+          <div className="card-content" style={{ padding: 16 }}>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              <li><b>Título:</b> {document.title}</li>
+              <li><b>Categoria:</b> {document.category?.name || 'Não especificada'}</li>
+              <li><b>Versão:</b> v{document.version}</li>
+              <li><b>Data de Vigência:</b> {formatDate(document.effective_date)}</li>
+              <li><b>Próxima Revisão:</b> {formatDate(document.review_date)}</li>
               {document.description && (
-                <ListItem>
-                  <ListItemIcon>
-                    <InfoIcon color="primary" />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Descrição" 
-                    secondary={document.description}
-                    secondaryTypographyProps={{ whiteSpace: 'pre-line' }}
-                  />
-                </ListItem>
+                <li><b>Descrição:</b> <span style={{ whiteSpace: 'pre-line' }}>{document.description}</span></li>
               )}
-            </List>
-          </CardContent>
-        </Card>
-      </Grid>
-      
-      <Grid item xs={12} md={4}>
-        <Card>
-          <CardHeader title="Metadados" />
-          <Divider />
-          <CardContent>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <PersonIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Criado por" 
-                  secondary={document.creator?.name || 'Usuário não encontrado'}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <CalendarIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Data de Criação" 
-                  secondary={formatDate(document.created_at)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <CalendarIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Última Atualização" 
-                  secondary={formatDate(document.updated_at)}
-                />
-              </ListItem>
-              
-              <ListItem>
-                <ListItemIcon>
-                  <DocumentIcon color="primary" />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Arquivo" 
-                  secondary={document.file_name}
-                  secondaryTypographyProps={{
-                    style: {
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }
-                  }}
-                />
-              </ListItem>
-            </List>
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div style={{ flex: 1 }}>
+        <div className="card" style={{ border: '1px solid #ccc', borderRadius: 8 }}>
+          <div className="card-header" style={{ padding: 16, borderBottom: '1px solid #eee' }}>
+            <span style={{ fontWeight: 'bold' }}>Metadados</span>
+          </div>
+          <div className="card-content" style={{ padding: 16 }}>
+            <ul style={{ listStyle: 'none', padding: 0 }}>
+              <li><b>Criado por:</b> {document.creator?.name || 'Usuário não encontrado'}</li>
+              <li><b>Data de Criação:</b> {formatDate(document.created_at)}</li>
+              <li><b>Última Atualização:</b> {formatDate(document.updated_at)}</li>
+              <li><b>Arquivo:</b> <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: 200 }}>{document.file_name}</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 

@@ -12,20 +12,22 @@ class DocumentRevision extends Model
     protected $fillable = [
         'document_id',
         'version',
+        'revision_date',
+        'approved_at',
+        'approved_by',
         'changes',
         'file_path',
         'file_name',
         'file_type',
         'file_size',
         'created_by',
-        'reviewed_by',
-        'reviewed_at',
-        'review_notes',
+        'observations',
         'status'
     ];
 
     protected $dates = [
-        'reviewed_at',
+        'revision_date',
+        'approved_at',
         'created_at',
         'updated_at'
     ];

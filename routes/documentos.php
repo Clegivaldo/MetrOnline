@@ -26,17 +26,11 @@ Route::prefix('documents')->group(function () {
     Route::delete('/{document}', [DocumentController::class, 'destroy']);
     Route::get('/{document}/download', [DocumentController::class, 'download']);
     
-    // Rotas de Revisões
-    Route::get('/{document}/revisions', function (\App\Models\Document $document) {
-        return response()->json($document->revisions()->with(['creator', 'reviewer'])->get());
-    });
-    
-    Route::get('/revisions/{revision}/download', function (DocumentRevision $revision) {
-        if (!\Illuminate\Support\Facades\Storage::exists($revision->file_path)) {
-            return response()->json(['message' => 'Arquivo não encontrado.'], 404);
-        }
-        return \Illuminate\Support\Facades\Storage::download($revision->file_path, $revision->file_name);
-    });
+    // Rotas de Revisões (RESTful)
+    Route::get('/{document}/revisions', [\App\Http\Controllers\DocumentRevisionController::class, 'index']);
+    Route::post('/{document}/revisions', [\App\Http\Controllers\DocumentRevisionController::class, 'store']);
+    Route::get('/{document}/revisions/{revision}', [\App\Http\Controllers\DocumentRevisionController::class, 'show']);
+    Route::get('/{document}/revisions/{revision}/download', [\App\Http\Controllers\DocumentRevisionController::class, 'download']);
 
     // Rotas de Distribuição
     Route::prefix('{document}/distributions')->group(function () {
